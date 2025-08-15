@@ -19,6 +19,8 @@ public class Trainee {
     }
 
     // Getters & Setters
+
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -30,6 +32,10 @@ public class Trainee {
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
+
+
+
+
 
     @Override
     public boolean equals(Object o) {

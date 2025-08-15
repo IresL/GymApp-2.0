@@ -16,6 +16,8 @@ public class Trainer {
     }
 
     // Getters & Setters
+
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -24,6 +26,7 @@ public class Trainer {
 
     public TrainingType getSpecialization() { return specialization; }
     public void setSpecialization(TrainingType specialization) { this.specialization = specialization; }
+
 
     @Override
     public boolean equals(Object o) {

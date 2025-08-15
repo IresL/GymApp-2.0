@@ -43,6 +43,7 @@ public class CoreServicesTests {
             assertTrue(usernames.contains("john.smith.1"));
 
             // პაროლის სიგრძე 10
+
             list.forEach(u -> assertEquals(10, u.getPassword().length()));
         }
     }

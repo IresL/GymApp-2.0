@@ -14,6 +14,8 @@ import java.util.Map;
 
 @Configuration
 @PropertySource("classpath:application.properties")
+//შესაძლებელს ხდის @Value-ით property-ების წაკითხვას.
+
 public class AppConfig {
 
     @Bean(name = "userStorage")
