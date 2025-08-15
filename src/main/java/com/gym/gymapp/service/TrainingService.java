@@ -1,51 +1,60 @@
 package com.gym.gymapp.service;
 
+import com.gym.gymapp.dao.TraineeDao;
+import com.gym.gymapp.dao.TrainerDao;
 import com.gym.gymapp.dao.TrainingDao;
 import com.gym.gymapp.model.Training;
-import com.gym.gymapp.model.TrainingType;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
 public class TrainingService {
-    private static final Logger logger = LoggerFactory.getLogger(TrainingService.class);
+    private static final Logger log = LoggerFactory.getLogger(TrainingService.class);
 
     private TrainingDao trainingDao;
+    private TraineeDao traineeDao;
+    private TrainerDao trainerDao;
 
     @Autowired
-    public void setTrainingDao(TrainingDao trainingDao) {
-        this.trainingDao = trainingDao;
-    }
+    public void setTrainingDao(TrainingDao trainingDao) { this.trainingDao = trainingDao; }
 
-    public Training createTraining(Long traineeId, Long trainerId, String trainingName,
-                                   TrainingType trainingType, LocalDate trainingDate, Integer trainingDuration) {
-        logger.info("Creating new training: {} for trainee {} and trainer {}", trainingName, traineeId, trainerId);
+    @Autowired
+    public void setTraineeDao(TraineeDao traineeDao) { this.traineeDao = traineeDao; }
 
-        Training training = new Training(traineeId, trainerId, trainingName, trainingType, trainingDate, trainingDuration);
-        training = trainingDao.save(training);
+    @Autowired
+    public void setTrainerDao(TrainerDao trainerDao) { this.trainerDao = trainerDao; }
 
-        logger.info("Successfully created training with id: {}", training.getId());
+    public Training create(Training training) {
+        Objects.requireNonNull(training, "training is required");
+        if (training.getTraineeId() == null) throw new IllegalArgumentException("training.traineeId is required");
+        if (training.getTrainerId() == null) throw new IllegalArgumentException("training.trainerId is required");
+        if (training.getTrainingName() == null) throw new IllegalArgumentException("training.trainingName is required");
+        if (training.getTrainingType() == null) throw new IllegalArgumentException("training.trainingType is required");
+        if (training.getTrainingDate() == null) throw new IllegalArgumentException("training.trainingDate is required");
+        if (training.getTrainingDuration() == null) throw new IllegalArgumentException("training.trainingDuration is required");
+
+        if (traineeDao.findById(training.getTraineeId()).isEmpty())
+            throw new IllegalArgumentException("trainee not found: " + training.getTraineeId());
+        if (trainerDao.findById(training.getTrainerId()).isEmpty())
+            throw new IllegalArgumentException("trainer not found: " + training.getTrainerId());
+
+        trainingDao.save(training);
+        log.info("Created training id={} (traineeId={}, trainerId={})",
+                training.getId(), training.getTraineeId(), training.getTrainerId());
         return training;
     }
 
-    public Optional<Training> selectTraining(Long trainingId) {
-        logger.debug("Selecting training with id: {}", trainingId);
-        return trainingDao.findById(trainingId);
-    }
+    public Optional<Training> get(Long id) { return trainingDao.findById(id); }
 
-    public List<Training> selectTrainingsByTrainee(Long traineeId) {
-        logger.debug("Selecting trainings for trainee id: {}", traineeId);
-        return trainingDao.findByTraineeId(traineeId);
-    }
+    public List<Training> list() { return trainingDao.findAll(); }
 
-    public List<Training> selectTrainingsByTrainer(Long trainerId) {
-        logger.debug("Selecting trainings for trainer id: {}", trainerId);
-        return trainingDao.findByTrainerId(trainerId);
-    }
+    public List<Training> listByTrainee(Long traineeId) { return trainingDao.findByTraineeId(traineeId); }
+
+    public List<Training> listByTrainer(Long trainerId) { return trainingDao.findByTrainerId(trainerId); }
 }

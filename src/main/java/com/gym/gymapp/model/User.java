@@ -10,15 +10,16 @@ public class User {
     private String password;
     private Boolean isActive;
 
-    public User() {}
-
-    public User(String firstName, String lastName) {
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.isActive = true;
+    public User() {
     }
 
-    // Getters and setters. lombok დავაყენე და მერე უნდა შევცვალო
+    public User(String firstName, String lastName, Boolean isActive) {
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.isActive = isActive;
+    }
+
+    // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -35,19 +36,15 @@ public class User {
     public void setPassword(String password) { this.password = password; }
 
     public Boolean getIsActive() { return isActive; }
-    public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+    public void setIsActive(Boolean active) { isActive = active; }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        User user = (User) o;
+        if (!(o instanceof User user)) return false;
         return Objects.equals(id, user.id);
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
+    public int hashCode() { return Objects.hash(id); }
 }
-

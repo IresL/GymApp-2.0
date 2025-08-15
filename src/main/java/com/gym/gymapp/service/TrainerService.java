@@ -1,91 +1,50 @@
 package com.gym.gymapp.service;
 
 import com.gym.gymapp.dao.TrainerDao;
-import com.gym.gymapp.dao.UserDao;
 import com.gym.gymapp.model.Trainer;
-import com.gym.gymapp.model.TrainingType;
 import com.gym.gymapp.model.User;
-import com.gym.gymapp.util.PasswordGenerator;
-import com.gym.gymapp.util.UsernameGenerator;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
 public class TrainerService {
-    private static final Logger logger = LoggerFactory.getLogger(TrainerService.class);
+    private static final Logger log = LoggerFactory.getLogger(TrainerService.class);
 
     private TrainerDao trainerDao;
-    private UserDao userDao;
-    private UsernameGenerator usernameGenerator;
+    private UserService userService;
 
     @Autowired
-    public void setTrainerDao(TrainerDao trainerDao) {
-        this.trainerDao = trainerDao;
-    }
+    public void setTrainerDao(TrainerDao trainerDao) { this.trainerDao = trainerDao; }
 
     @Autowired
-    public void setUserDao(UserDao userDao) {
-        this.userDao = userDao;
-    }
+    public void setUserService(UserService userService) { this.userService = userService; }
 
-    @Autowired
-    public void setUsernameGenerator(UsernameGenerator usernameGenerator) {
-        this.usernameGenerator = usernameGenerator;
-    }
-
-    public User createTrainer(String firstName, String lastName, TrainingType specialization) {
-        logger.info("Creating new trainer: {} {} with specialization: {}", firstName, lastName, specialization);
-
-        // Create User
-        User user = new User(firstName, lastName);
-        user.setUsername(usernameGenerator.generateUsername(firstName, lastName));
-        user.setPassword(PasswordGenerator.generatePassword());
-        user = userDao.save(user);
-
-        // Create Trainer
-        Trainer trainer = new Trainer(user.getId(), specialization);
+    /** ქმნის User-ს და აკავშირებს Trainer-სთან (specialization უნდა იყოს უკვე დადგენილი ობიექტში) */
+    public Trainer create(String firstName, String lastName, Boolean isActive, Trainer trainer) {
+        Objects.requireNonNull(trainer, "trainer is required");
+        if (trainer.getSpecialization() == null) throw new IllegalArgumentException("trainer.specialization is required");
+        User u = userService.createUser(firstName, lastName, isActive);
+        trainer.setUserId(u.getId());
         trainerDao.save(trainer);
-
-        logger.info("Successfully created trainer with username: {}", user.getUsername());
-        return user;
+        log.info("Created trainer id={} (userId={})", trainer.getId(), u.getId());
+        return trainer;
     }
 
-    public Optional<Trainer> selectTrainer(Long trainerId) {
-        logger.debug("Selecting trainer with id: {}", trainerId);
-        return trainerDao.findById(trainerId);
+    public Trainer update(Trainer trainer) {
+        Objects.requireNonNull(trainer, "trainer is required");
+        if (trainer.getId() == null) throw new IllegalArgumentException("trainer.id is required for update");
+        trainerDao.save(trainer);
+        log.info("Updated trainer id={}", trainer.getId());
+        return trainer;
     }
 
-    public Optional<Trainer> selectTrainerByUserId(Long userId) {
-        logger.debug("Selecting trainer by user id: {}", userId);
-        return trainerDao.findByUserId(userId);
-    }
+    public Optional<Trainer> get(Long id) { return trainerDao.findById(id); }
 
-    public Optional<Trainer> updateTrainer(Long trainerId, String firstName, String lastName, Boolean isActive) {
-        logger.info("Updating trainer with id: {}", trainerId);
-
-        Optional<Trainer> trainerOpt = trainerDao.findById(trainerId);
-        if (trainerOpt.isPresent()) {
-            Trainer trainer = trainerOpt.get();
-
-            // Update user fields (specialization is read-only)
-            Optional<User> userOpt = userDao.findById(trainer.getUserId());
-            if (userOpt.isPresent()) {
-                User user = userOpt.get();
-                user.setFirstName(firstName);
-                user.setLastName(lastName);
-                user.setIsActive(isActive);
-                userDao.save(user);
-            }
-
-            logger.info("Successfully updated trainer with id: {}", trainerId);
-            return Optional.of(trainer);
-        }
-
-        logger.warn("Trainer with id {} not found for update", trainerId);
-        return Optional.empty();
-    }
+    public List<Trainer> list() { return trainerDao.findAll(); }
 }

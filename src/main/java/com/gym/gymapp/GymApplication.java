@@ -1,38 +1,34 @@
 package com.gym.gymapp;
 
-import com.gym.gymapp.config.AppConfig;
 import com.gym.gymapp.facade.GymFacade;
+import com.gym.gymapp.model.Trainee;
+import com.gym.gymapp.model.Trainer;
 import com.gym.gymapp.model.TrainingType;
-import com.gym.gymapp.model.User;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 import java.time.LocalDate;
 
 public class GymApplication {
-	private static final Logger logger = LoggerFactory.getLogger(GymApplication.class);
+	private static final Logger log = LoggerFactory.getLogger(GymApplication.class);
 
 	public static void main(String[] args) {
-		logger.info("Starting Gym CRM Application");
+		try (var ctx = new AnnotationConfigApplicationContext("com.gym.gymapp")) {
+			var facade = ctx.getBean(GymFacade.class);
 
-		ApplicationContext context = new AnnotationConfigApplicationContext(AppConfig.class);
-		GymFacade facade = context.getBean(GymFacade.class);
+			// Trainer create
+			var trainer = new Trainer();
+			trainer.setSpecialization(TrainingType.fitness);
+			trainer = facade.createTrainer("John", "Smith", true, trainer);
+			log.info("Trainer created id={}, userId={}", trainer.getId(), trainer.getUserId());
 
-		// Demo usage
-		try {
-			// Create a trainee
-			User trainee = facade.createTrainee("John", "Doe", LocalDate.of(1990, 1, 1), "123 Main St");
-			logger.info("Created trainee: {} with password: {}", trainee.getUsername(), trainee.getPassword());
-
-			// Create a trainer
-			User trainer = facade.createTrainer("Jane", "Smith", TrainingType.FITNESS);
-			logger.info("Created trainer: {} with password: {}", trainer.getUsername(), trainer.getPassword());
-
-			logger.info("Gym CRM Application demo completed successfully");
-		} catch (Exception e) {
-			logger.error("Error during application demo", e);
+			// Trainee create
+			var trainee = new Trainee();
+			trainee.setDateOfBirth(LocalDate.of(1995, 5, 5));
+			trainee.setAddress("Tbilisi");
+			trainee = facade.createTrainee("Anna", "Brown", true, trainee);
+			log.info("Trainee created id={}, userId={}", trainee.getId(), trainee.getUserId());
 		}
 	}
 }

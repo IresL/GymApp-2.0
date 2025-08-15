@@ -1,61 +1,44 @@
 package com.gym.gymapp.dao;
 
 import com.gym.gymapp.model.User;
-import com.gym.gymapp.storage.InMemoryStorage;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Repository
 public class UserDao {
-    private static final Logger logger = LoggerFactory.getLogger(UserDao.class);
-    private static final String NAMESPACE = "users";
 
-    private InMemoryStorage storage;
+    private final Map<Long, User> storage;
+    private long seq = 1L;
 
-    @Autowired
-    public void setStorage(InMemoryStorage storage) {
+    public UserDao(@Qualifier("userStorage") Map<Long, User> storage) {
         this.storage = storage;
     }
 
     public User save(User user) {
         if (user.getId() == null) {
-            user.setId(storage.generateId(NAMESPACE));
+            user.setId(seq++);
         }
-        storage.save(NAMESPACE, user.getId(), user);
-        logger.info("Saved user: {}", user.getUsername());
+        storage.put(user.getId(), user);
         return user;
     }
 
     public Optional<User> findById(Long id) {
-        User user = storage.findById(NAMESPACE, id);
-        logger.debug("Finding user by id {}: {}", id, user != null ? "found" : "not found");
-        return Optional.ofNullable(user);
+        return Optional.ofNullable(storage.get(id));
     }
 
     public Optional<User> findByUsername(String username) {
-        Map<Long, User> users = storage.getNamespace(NAMESPACE);
-        Optional<User> user = users.values().stream()
+        return storage.values().stream()
                 .filter(u -> username.equals(u.getUsername()))
                 .findFirst();
-        logger.debug("Finding user by username {}: {}", username, user.isPresent() ? "found" : "not found");
-        return user;
     }
 
-    public Collection<User> findAll() {
-        Collection<User> users = storage.<User>getNamespace(NAMESPACE).values();
-        logger.debug("Finding all users: {} found", users.size());
-        return users;
+    public List<User> findAll() {
+        return new ArrayList<>(storage.values());
     }
 
     public boolean delete(Long id) {
-        boolean deleted = storage.delete(NAMESPACE, id);
-        logger.info("Deleted user with id {}: {}", id, deleted);
-        return deleted;
+        return storage.remove(id) != null;
     }
 }

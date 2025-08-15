@@ -7,14 +7,15 @@ public class Trainer {
     private Long userId;
     private TrainingType specialization;
 
-    public Trainer() {}
+    public Trainer() {
+    }
 
     public Trainer(Long userId, TrainingType specialization) {
         this.userId = userId;
         this.specialization = specialization;
     }
 
-    // Getters and setters. lombok და უნდა გადავაკეთო
+    // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -27,14 +28,10 @@ public class Trainer {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Trainer trainer = (Trainer) o;
+        if (!(o instanceof Trainer trainer)) return false;
         return Objects.equals(id, trainer.id);
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
+    public int hashCode() { return Objects.hash(id); }
 }
-

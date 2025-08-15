@@ -1,56 +1,34 @@
 package com.gym.gymapp.dao;
 
 import com.gym.gymapp.model.Trainer;
-import com.gym.gymapp.storage.InMemoryStorage;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.Optional;
+import java.util.*;
 
 @Repository
 public class TrainerDao {
-    private static final Logger logger = LoggerFactory.getLogger(TrainerDao.class);
-    private static final String NAMESPACE = "trainers";
 
-    private InMemoryStorage storage;
+    private final Map<Long, Trainer> storage;
+    private long seq = 1L;
 
-    @Autowired
-    public void setStorage(InMemoryStorage storage) {
+    public TrainerDao(@Qualifier("trainerStorage") Map<Long, Trainer> storage) {
         this.storage = storage;
     }
 
     public Trainer save(Trainer trainer) {
         if (trainer.getId() == null) {
-            trainer.setId(storage.generateId(NAMESPACE));
+            trainer.setId(seq++);
         }
-        storage.save(NAMESPACE, trainer.getId(), trainer);
-        logger.info("Saved trainer with id: {}", trainer.getId());
+        storage.put(trainer.getId(), trainer);
         return trainer;
     }
 
     public Optional<Trainer> findById(Long id) {
-        Trainer trainer = storage.findById(NAMESPACE, id);
-        logger.debug("Finding trainer by id {}: {}", id, trainer != null ? "found" : "not found");
-        return Optional.ofNullable(trainer);
+        return Optional.ofNullable(storage.get(id));
     }
 
-    public Optional<Trainer> findByUserId(Long userId) {
-        Collection<Trainer> trainers = storage.<Trainer>getNamespace(NAMESPACE).values();
-        Optional<Trainer> trainer = trainers.stream()
-                .filter(t -> userId.equals(t.getUserId()))
-                .findFirst();
-        logger.debug("Finding trainer by userId {}: {}", userId, trainer.isPresent() ? "found" : "not found");
-        return trainer;
-    }
-
-    public Collection<Trainer> findAll() {
-        Collection<Trainer> trainers = storage.<Trainer>getNamespace(NAMESPACE).values();
-        logger.debug("Finding all trainers: {} found", trainers.size());
-        return trainers;
+    public List<Trainer> findAll() {
+        return new ArrayList<>(storage.values());
     }
 }
-
-

@@ -10,12 +10,13 @@ public class Training {
     private String trainingName;
     private TrainingType trainingType;
     private LocalDate trainingDate;
-    private Integer trainingDuration;
+    private Integer trainingDuration; // წუთებში ან საათებში
 
-    public Training() {}
+    public Training() {
+    }
 
-    public Training(Long traineeId, Long trainerId, String trainingName,
-                    TrainingType trainingType, LocalDate trainingDate, Integer trainingDuration) {
+    public Training(Long traineeId, Long trainerId, String trainingName, TrainingType trainingType,
+                    LocalDate trainingDate, Integer trainingDuration) {
         this.traineeId = traineeId;
         this.trainerId = trainerId;
         this.trainingName = trainingName;
@@ -24,7 +25,7 @@ public class Training {
         this.trainingDuration = trainingDuration;
     }
 
-    // Getters and setters. იგივე lombok
+    // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -49,13 +50,10 @@ public class Training {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Training training = (Training) o;
+        if (!(o instanceof Training training)) return false;
         return Objects.equals(id, training.id);
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
+    public int hashCode() { return Objects.hash(id); }
 }

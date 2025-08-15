@@ -9,7 +9,8 @@ public class Trainee {
     private LocalDate dateOfBirth;
     private String address;
 
-    public Trainee() {}
+    public Trainee() {
+    }
 
     public Trainee(Long userId, LocalDate dateOfBirth, String address) {
         this.userId = userId;
@@ -17,7 +18,7 @@ public class Trainee {
         this.address = address;
     }
 
-    // Getters and setters. lombok
+    // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -33,13 +34,10 @@ public class Trainee {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Trainee trainee = (Trainee) o;
+        if (!(o instanceof Trainee trainee)) return false;
         return Objects.equals(id, trainee.id);
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
+    public int hashCode() { return Objects.hash(id); }
 }
