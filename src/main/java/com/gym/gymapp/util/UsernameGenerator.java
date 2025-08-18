@@ -29,7 +29,21 @@ public class UsernameGenerator {
                 .replaceAll("\\s+", "")
                 .toLowerCase();
 
-        Set<String> existing = existingUsernames();
+        // თუ თვითონ base თავისუფალია, ვაბრუნებთ მასვე
+        if (!userDao.existsByUsername(base)) {
+            return base;
+        }
+
+        // სხვაგვარად ვპოულობთ პირველ თავისუფალ ".N" ვერსიას
+        int i = 1;
+        String candidate;
+        do {
+            candidate = base + "." + i++;
+        } while (userDao.existsByUsername(candidate));
+        return candidate;
+    }
+}
+       /* Set<String> existing = existingUsernames();
         String candidate = base;
         int counter = 1;
 
@@ -49,4 +63,4 @@ public class UsernameGenerator {
         }
         return set;
     }
-}
+}*/
