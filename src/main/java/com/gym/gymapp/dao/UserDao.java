@@ -41,4 +41,10 @@ public class UserDao {
     public boolean delete(Long id) {
         return storage.remove(id) != null;
     }
+
+    //checker
+    public boolean existsByUsername(String username) {
+        if (username == null) return false;
+        return storage.values().stream().anyMatch(u -> username.equals(u.getUsername()));
+    }
 }
