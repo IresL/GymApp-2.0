@@ -26,8 +26,8 @@ public class UsernameGenerator {
     public String generate(String firstName, String lastName) {
         String base = (firstName + "." + lastName)
                 .trim()
-                .replaceAll("\\s+", "")
-                .toLowerCase();
+                .replaceAll("\\s+", "");
+              //  .toLowerCase();
 
         // თუ თვითონ base თავისუფალია, ვაბრუნებთ მასვე
         if (!userDao.existsByUsername(base)) {

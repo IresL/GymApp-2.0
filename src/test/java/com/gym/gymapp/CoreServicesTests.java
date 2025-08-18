@@ -26,21 +26,21 @@ public class CoreServicesTests {
             var t1 = new Trainee();
             t1.setDateOfBirth(LocalDate.of(1990, 1, 1));
             t1.setAddress("Addr 1");
-            trainees.create("John", "Smith", true, t1);
+            trainees.create("Ciaphas", "Cain", true, t1);
 
             var t2 = new Trainee();
             t2.setDateOfBirth(LocalDate.of(1991, 2, 2));
             t2.setAddress("Addr 2");
-            trainees.create("John", "Smith", true, t2);
+            trainees.create("Ciaphas", "Cain", true, t2);
 
             var list = users.list().stream()
-                    .filter(u -> "John".equals(u.getFirstName()) && "Smith".equals(u.getLastName()))
+                    .filter(u -> "Ciaphas".equals(u.getFirstName()) && "Cain".equals(u.getLastName()))
                     .collect(Collectors.toList());
 
             assertEquals(2, list.size());
             Set<String> usernames = list.stream().map(User::getUsername).collect(Collectors.toSet());
-            assertTrue(usernames.contains("john.smith"));
-            assertTrue(usernames.contains("john.smith.1"));
+            assertTrue(usernames.contains("Ciaphas.Cain"));
+            assertTrue(usernames.contains("Ciaphas.Cain.1"));
 
             // პაროლის სიგრძე 10
 
@@ -56,7 +56,7 @@ public class CoreServicesTests {
             var t = new Trainee();
             t.setDateOfBirth(LocalDate.of(1995, 5, 5));
             t.setAddress("Old");
-            trainees.create("Alice", "Brown", true, t);
+            trainees.create("Tona", "Creed", true, t);
             assertNotNull(t.getId());
 
             var got = trainees.get(t.getId());
@@ -81,13 +81,13 @@ public class CoreServicesTests {
             // ვქმნით ვალიდურ Trainee/Trainer-ს
             var trn = new Trainer();
             trn.setSpecialization(TrainingType.fitness);
-            trainers.create("Bob", "Green", true, trn);
+            trainers.create("Ibram", "Gaunt", true, trn);
             assertNotNull(trn.getId());
 
             var tr = new Trainee();
             tr.setDateOfBirth(LocalDate.of(1999, 9, 9));
             tr.setAddress("X");
-            trainees.create("Clara", "White", true, tr);
+            trainees.create("Amberley", "Vail", true, tr);
             assertNotNull(tr.getId());
 
             // სწორი Training
