@@ -4,22 +4,16 @@ import org.springframework.stereotype.Component;
 
 import java.security.SecureRandom;
 
-/**
- * პაროლის გენერატორი.
- * ქმნის მითითებული სიგრძის შემთხვევით სტრინგს,
- * რომელიც შეიცავს A-Z, a-z, 0-9 სიმბოლოებს.
- */
 @Component
 public class PasswordGenerator {
+    private static final String ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    private static final SecureRandom RNG = new SecureRandom();
 
-    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    private static final SecureRandom RANDOM = new SecureRandom();
-
-    public String generate(int length) {
-        StringBuilder password = new StringBuilder(length);
-        for (int i = 0; i < length; i++) {
-            password.append(CHARACTERS.charAt(RANDOM.nextInt(CHARACTERS.length())));
-        }
-        return password.toString();
+    public String generate(){ return generate(10); }
+    public String generate(int len){
+        if (len<=0) throw new IllegalArgumentException("length>0");
+        StringBuilder sb = new StringBuilder(len);
+        for (int i=0;i<len;i++) sb.append(ALPHABET.charAt(RNG.nextInt(ALPHABET.length())));
+        return sb.toString();
     }
 }

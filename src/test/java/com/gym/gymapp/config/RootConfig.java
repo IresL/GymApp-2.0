@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
 @Configuration
-@ComponentScan(basePackages = "com.gym.gymapp")
-@Import(PersistenceConfig.class)
+@Import(PersistenceConfig.class)          // ჩვენი პროდაქშენ კონფიგი
+@ComponentScan(basePackages = "com.gym.gymapp") // services, util, facade, וכו.
 public class RootConfig { }
+

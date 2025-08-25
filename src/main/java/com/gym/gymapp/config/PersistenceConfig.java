@@ -4,15 +4,9 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.flywaydb.core.Flyway;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Condition;
-import org.springframework.context.annotation.ConditionContext;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.DependsOn;
-import org.springframework.context.annotation.PropertySource;
-import org.springframework.context.annotation.Conditional;
-import org.springframework.core.type.AnnotatedTypeMetadata;
+import org.springframework.context.annotation.*;
+import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
+import org.springframework.core.env.Environment;
 import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.JpaTransactionManager;
@@ -27,27 +21,30 @@ import java.util.Properties;
 @Configuration
 @EnableTransactionManagement
 @EnableJpaRepositories(basePackages = "com.gym.gymapp.repository")
-@ComponentScan(basePackages = "com.gym.gymapp")
 @PropertySource("classpath:application.properties")
 public class PersistenceConfig {
 
-    // --- Spring Boot–style property keys (kept, even in Core setup) ---
-    @Value("${spring.datasource.url}") private String url;
-    @Value("${spring.datasource.username}") private String username;
-    @Value("${spring.datasource.password}") private String password;
-    @Value("${spring.datasource.driver-class-name:org.postgresql.Driver}") private String driver;
+    // --- ეს static bean აუცილებელია, რომ @Value("${...}") იმუშაოს Core რეჟიმში
+    @Bean
+    public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
+        return new PropertySourcesPlaceholderConfigurer();
+    }
 
-    @Value("${spring.jpa.properties.hibernate.dialect:org.hibernate.dialect.PostgreSQLDialect}")
-    private String dialect;
-    @Value("${spring.jpa.hibernate.ddl-auto:validate}") private String hbm2ddl;
-    @Value("${spring.jpa.show-sql:true}") private boolean showSql;
-    @Value("${spring.jpa.properties.hibernate.format_sql:true}") private boolean formatSql;
+    // --- DB properties ---
+    @Value("${db.url}")      private String url;
+    @Value("${db.username}") private String username;
+    @Value("${db.password}") private String password;
+    @Value("${db.driver}")   private String driver;
 
-    @Value("${spring.flyway.locations:classpath:db/migration}") private String flywayLocations;
+    // --- Hibernate/JPA properties ---
+    @Value("${hibernate.dialect}")      private String dialect;
+    @Value("${hibernate.hbm2ddl.auto}") private String hbm2ddl;
+    @Value("${hibernate.show_sql}")     private boolean showSql;
+    @Value("${hibernate.format_sql}")   private boolean formatSql;
 
-    private static final String PACKAGES_TO_SCAN = "com.gym.gymapp.model";
+    @Value("${jpa.packages}") private String packagesToScan;
 
-    // --- DataSource (Hikari) ---
+    // --- DataSource (HikariCP) ---
     @Bean
     public DataSource dataSource() {
         HikariConfig cfg = new HikariConfig();
@@ -59,14 +56,32 @@ public class PersistenceConfig {
         return new HikariDataSource(cfg);
     }
 
-    // --- JPA / Hibernate EMF ---
+    // --- Flyway (მიგრაციები) ---
     @Bean
-    public LocalContainerEntityManagerFactoryBean entityManagerFactory(DataSource dataSource) {
-        LocalContainerEntityManagerFactoryBean emf = new LocalContainerEntityManagerFactoryBean();
-        emf.setDataSource(dataSource);
-        emf.setPackagesToScan(PACKAGES_TO_SCAN);
+    @DependsOn("dataSource")
+    public Flyway flyway(DataSource ds,
+                         Environment env,
+                         @Value("${flyway.locations:classpath:db/migration}") String locations) {
+        Flyway flyway = Flyway.configure()
+                .locations(locations)
+                .dataSource(ds)
+                .load();
+        boolean enabled = Boolean.parseBoolean(env.getProperty("flyway.enabled", "true"));
+        if (enabled) {
+            flyway.migrate();
+        }
+        return flyway;
+    }
 
-        HibernateJpaVendorAdapter vendor = new HibernateJpaVendorAdapter();
+    // --- EntityManagerFactory ---
+    @Bean
+    @DependsOn("flyway") // ჯერ მიგრაციები, მერე EMF
+    public LocalContainerEntityManagerFactoryBean entityManagerFactory(DataSource dataSource) {
+        var emf = new LocalContainerEntityManagerFactoryBean();
+        emf.setDataSource(dataSource);
+        emf.setPackagesToScan(packagesToScan);
+
+        var vendor = new HibernateJpaVendorAdapter();
         vendor.setShowSql(showSql);
         emf.setJpaVendorAdapter(vendor);
 
@@ -79,35 +94,15 @@ public class PersistenceConfig {
         return emf;
     }
 
-    // --- Tx Manager ---
+    // --- Transaction Manager ---
     @Bean
     public PlatformTransactionManager transactionManager(LocalContainerEntityManagerFactoryBean emf) {
         return new JpaTransactionManager(emf.getObject());
     }
 
-    // --- Translate JPA exceptions to Spring DataAccessException hierarchy ---
+    // --- Exception translation (JPA → Spring exceptions) ---
     @Bean
     public PersistenceExceptionTranslationPostProcessor exceptionTranslation() {
         return new PersistenceExceptionTranslationPostProcessor();
-    }
-
-    // --- Flyway (conditional by spring.flyway.enabled) ---
-    @Bean(initMethod = "migrate")
-    @DependsOn("dataSource")
-    @Conditional(FlywayEnabled.class)
-    public Flyway flyway(DataSource ds) {
-        return Flyway.configure()
-                .locations(flywayLocations)
-                .dataSource(ds)
-                .load();
-    }
-
-    /** Enables Flyway bean only if spring.flyway.enabled=true (default true). */
-    public static class FlywayEnabled implements Condition {
-        @Override
-        public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-            String enabled = context.getEnvironment().getProperty("spring.flyway.enabled", "true");
-            return Boolean.parseBoolean(enabled);
-        }
     }
 }

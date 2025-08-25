@@ -1,9 +1,7 @@
 package com.gym.gymapp.util;
 
-
-import com.gym.gymapp.dao.UserDao;
+import com.gym.gymapp.repository.UserRepository;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -11,21 +9,21 @@ import static org.mockito.Mockito.*;
 public class UsernameGeneratorTest {
 
     @Test
-    void generatesUniqueUsernamesUsingDaoExistenceChecks() {
-        UserDao userDao = Mockito.mock(UserDao.class);
-        UsernameGenerator gen = new UsernameGenerator();
-        gen.setUserDao(userDao);
+    void generates_unique_usernames_with_increment() {
+        UserRepository repo = mock(UserRepository.class);
+        UsernameGenerator gen = new UsernameGenerator(repo);
 
-        // base თავისუფალია
-        when(userDao.existsByUsername("Ciaphas.Cain")).thenReturn(false);
-        assertEquals("Ciaphas.Cain", gen.generate("Ciaphas", "Cain"));
+        // "john.smith" თავისუფალია
+        when(repo.existsByUsernameIgnoreCase("john.smith")).thenReturn(false);
+        assertEquals("john.smith", gen.generate("John", "Smith"));
 
-        // base დაკავებულია, .1 დაკავებულია, .2 თავისუფალია
-        when(userDao.existsByUsername("Ciaphas.Cain")).thenReturn(true);
-        when(userDao.existsByUsername("Ciaphas.Cain.1")).thenReturn(true);
-        when(userDao.existsByUsername("Ciaphas.Cain.2")).thenReturn(false);
-        assertEquals("Ciaphas.Cain.2", gen.generate("Ciaphas", "Cain"));
+        // უკვე დაკავებულია base და .1; თავისუფალია .2
+        when(repo.existsByUsernameIgnoreCase("john.smith")).thenReturn(true);
+        when(repo.existsByUsernameIgnoreCase("john.smith.1")).thenReturn(true);
+        when(repo.existsByUsernameIgnoreCase("john.smith.2")).thenReturn(false);
+        assertEquals("john.smith.2", gen.generate("John", "Smith"));
 
-        verify(userDao, atLeastOnce()).existsByUsername(anyString());
+        verify(repo, atLeastOnce()).existsByUsernameIgnoreCase(anyString());
     }
 }
+

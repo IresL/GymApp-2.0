@@ -1,60 +1,89 @@
 package com.gym.gymapp.service;
 
-import com.gym.gymapp.dao.UserDao;
+import com.gym.gymapp.exception.NotFoundException;
+import com.gym.gymapp.exception.ValidationException;
 import com.gym.gymapp.model.User;
+import com.gym.gymapp.repository.UserRepository;
 import com.gym.gymapp.util.PasswordGenerator;
+import com.gym.gymapp.util.PasswordHasher;
 import com.gym.gymapp.util.UsernameGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class UserService {
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
-    private UserDao userDao;
-    private UsernameGenerator usernameGenerator;
-    private PasswordGenerator passwordGenerator;
+    public record CreatedUser(User user, String rawPassword) {}
 
-    @Autowired
-    public void setUserDao(UserDao userDao) { this.userDao = userDao; }
+    private final UserRepository userRepository;
+    private final UsernameGenerator usernameGenerator;
+    private final PasswordGenerator passwordGenerator;
+    private final PasswordHasher passwordHasher;
 
-    @Autowired
-    public void setUsernameGenerator(UsernameGenerator usernameGenerator) { this.usernameGenerator = usernameGenerator; }
+    public UserService(UserRepository userRepository,
+                       UsernameGenerator usernameGenerator,
+                       PasswordGenerator passwordGenerator,
+                       PasswordHasher passwordHasher) {
+        this.userRepository = userRepository;
+        this.usernameGenerator = usernameGenerator;
+        this.passwordGenerator = passwordGenerator;
+        this.passwordHasher = passwordHasher;
+    }
 
-    @Autowired
-    public void setPasswordGenerator(PasswordGenerator passwordGenerator) { this.passwordGenerator = passwordGenerator; }
-
-    public User createUser(String firstName, String lastName, Boolean isActive) {
-        Objects.requireNonNull(firstName, "firstName is required");
-        Objects.requireNonNull(lastName, "lastName is required");
-        if (isActive == null) isActive = Boolean.TRUE;
+    public CreatedUser createUser(String firstName, String lastName, boolean active) {
+        if (firstName==null || firstName.isBlank() || lastName==null || lastName.isBlank())
+            throw new ValidationException("firstName/lastName required");
 
         String username = usernameGenerator.generate(firstName, lastName);
-        String password = passwordGenerator.generate(10);
+        String raw = passwordGenerator.generate(10);
 
         User u = new User();
         u.setFirstName(firstName);
         u.setLastName(lastName);
         u.setUsername(username);
-        u.setPassword(password);
-        u.setIsActive(isActive);
+        u.setPasswordHash(passwordHasher.encode(raw));
+        u.setIsActive(active);
 
-        userDao.save(u);
-        log.info("Created user id={}, username={}", u.getId(), u.getUsername());
-        return u;
+        User saved = userRepository.save(u);
+        log.info("Created user id={}, username={}", saved.getId(), saved.getUsername());
+        return new CreatedUser(saved, raw);
     }
 
-    public Optional<User> get(Long id) { return userDao.findById(id); }
+    public void changePassword(String username, String oldRaw, String newRaw) {
+        User u = userRepository.findByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new NotFoundException("User not found: " + username));
 
-    public Optional<User> findByUsername(String username) { return userDao.findByUsername(username); }
+        if (!passwordHasher.matches(oldRaw, u.getPasswordHash()))
+            throw new ValidationException("Old password doesn't match");
+        if (newRaw == null || newRaw.length() < 6)
+            throw new ValidationException("New password must be at least 6 chars");
 
-    public List<User> list() { return userDao.findAll(); }
+        u.setPasswordHash(passwordHasher.encode(newRaw));
+        userRepository.save(u);
+        log.info("Password changed for username={}", username);
+    }
 
-    public boolean delete(Long id) { return userDao.delete(id); }
+    public void activate(String username) {
+        User u = userRepository.findByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new NotFoundException("User not found: " + username));
+        if (Boolean.TRUE.equals(u.getIsActive()))
+            throw new ValidationException("User already active");
+        u.setIsActive(true);
+        userRepository.save(u);
+        log.info("Activated user username={}", username);
+    }
+
+    public void deactivate(String username) {
+        User u = userRepository.findByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new NotFoundException("User not found: " + username));
+        if (Boolean.FALSE.equals(u.getIsActive()))
+            throw new ValidationException("User already inactive");
+        u.setIsActive(false);
+        userRepository.save(u);
+        log.info("Deactivated user username={}", username);
+    }
 }
