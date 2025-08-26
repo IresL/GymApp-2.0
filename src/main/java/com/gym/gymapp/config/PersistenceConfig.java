@@ -1,14 +1,14 @@
 package com.gym.gymapp.config;
 
-import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import jakarta.persistence.EntityManagerFactory;
 import org.flywaydb.core.Flyway;
-import org.springframework.beans.factory.annotation.Value;
+import org.flywaydb.core.api.MigrationVersion;
 import org.springframework.context.annotation.*;
-import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 import org.springframework.core.env.Environment;
 import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
@@ -24,85 +24,85 @@ import java.util.Properties;
 @PropertySource("classpath:application.properties")
 public class PersistenceConfig {
 
-    // --- ეს static bean აუცილებელია, რომ @Value("${...}") იმუშაოს Core რეჟიმში
+    // ჭიქა წყალი პლეისჰოლდერებისთვის (Boot-ს გარეშე საჭიროა)
     @Bean
-    public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
-        return new PropertySourcesPlaceholderConfigurer();
+    public static org.springframework.context.support.PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
+        return new org.springframework.context.support.PropertySourcesPlaceholderConfigurer();
     }
 
-    // --- DB properties ---
-    @Value("${db.url}")      private String url;
-    @Value("${db.username}") private String username;
-    @Value("${db.password}") private String password;
-    @Value("${db.driver}")   private String driver;
-
-    // --- Hibernate/JPA properties ---
-    @Value("${hibernate.dialect}")      private String dialect;
-    @Value("${hibernate.hbm2ddl.auto}") private String hbm2ddl;
-    @Value("${hibernate.show_sql}")     private boolean showSql;
-    @Value("${hibernate.format_sql}")   private boolean formatSql;
-
-    @Value("${jpa.packages}") private String packagesToScan;
-
-    // --- DataSource (HikariCP) ---
     @Bean
-    public DataSource dataSource() {
-        HikariConfig cfg = new HikariConfig();
-        cfg.setJdbcUrl(url);
-        cfg.setUsername(username);
-        cfg.setPassword(password);
-        cfg.setDriverClassName(driver);
-        cfg.setMaximumPoolSize(10);
-        return new HikariDataSource(cfg);
+    public DataSource dataSource(Environment env) {
+        HikariDataSource ds = new HikariDataSource();
+        ds.setJdbcUrl(env.getProperty("db.url", "jdbc:postgresql://localhost:5432/gymdb"));
+        ds.setUsername(env.getProperty("db.username", "postgres"));
+        ds.setPassword(env.getProperty("db.password", ""));
+        ds.setDriverClassName(env.getProperty("db.driver", "org.postgresql.Driver"));
+        // სურვილის მიხედვით მინიმალური ტიუნინგი
+        ds.setMaximumPoolSize(Integer.parseInt(env.getProperty("db.pool.max", "10")));
+        ds.setMinimumIdle(Integer.parseInt(env.getProperty("db.pool.min", "10")));
+        return ds;
     }
 
-    // --- Flyway (მიგრაციები) ---
     @Bean
-    @DependsOn("dataSource")
-    public Flyway flyway(DataSource ds,
-                         Environment env,
-                         @Value("${flyway.locations:classpath:db/migration}") String locations) {
-        Flyway flyway = Flyway.configure()
-                .locations(locations)
-                .dataSource(ds)
-                .load();
+    public Flyway flyway(DataSource dataSource, Environment env) {
+        String locations = env.getProperty("flyway.locations", "classpath:db/migration");
         boolean enabled = Boolean.parseBoolean(env.getProperty("flyway.enabled", "true"));
+        boolean baselineOnMigrate = Boolean.parseBoolean(env.getProperty("flyway.baselineOnMigrate", "true"));
+        String baselineVersion = env.getProperty("flyway.baselineVersion", "1");
+        String schema = env.getProperty("db.schema", "public");
+
+        Flyway fw = Flyway.configure()
+                .dataSource(dataSource)
+                .locations(locations)
+                .schemas(schema)
+                .baselineOnMigrate(baselineOnMigrate)
+                .baselineVersion(MigrationVersion.fromVersion(baselineVersion))
+                .load();
+
         if (enabled) {
-            flyway.migrate();
+            fw.migrate();
         }
-        return flyway;
+        return fw;
     }
 
-    // --- EntityManagerFactory ---
     @Bean
     @DependsOn("flyway") // ჯერ მიგრაციები, მერე EMF
-    public LocalContainerEntityManagerFactoryBean entityManagerFactory(DataSource dataSource) {
-        var emf = new LocalContainerEntityManagerFactoryBean();
-        emf.setDataSource(dataSource);
-        emf.setPackagesToScan(packagesToScan);
+    public LocalContainerEntityManagerFactoryBean entityManagerFactory(DataSource dataSource, Environment env) {
+        String packages = env.getProperty("jpa.packages", "com.gym.gymapp.model");
 
-        var vendor = new HibernateJpaVendorAdapter();
-        vendor.setShowSql(showSql);
-        emf.setJpaVendorAdapter(vendor);
+        HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
+        // ეს უბრალოდ ლოგინგს ეხება; რეალურ SQL-ს Hibernate-ის props აკონტროლებს
+        vendorAdapter.setShowSql(Boolean.parseBoolean(env.getProperty("hibernate.show_sql", "true")));
+        vendorAdapter.setGenerateDdl(false);
 
         Properties jpaProps = new Properties();
-        jpaProps.setProperty("hibernate.dialect", dialect);
-        jpaProps.setProperty("hibernate.hbm2ddl.auto", hbm2ddl);
-        jpaProps.setProperty("hibernate.format_sql", String.valueOf(formatSql));
-        emf.setJpaProperties(jpaProps);
+        jpaProps.setProperty("hibernate.hbm2ddl.auto", env.getProperty("hibernate.hbm2ddl.auto", "validate"));
+        jpaProps.setProperty("hibernate.show_sql", env.getProperty("hibernate.show_sql", "true"));
+        jpaProps.setProperty("hibernate.format_sql", env.getProperty("hibernate.format_sql", "true"));
+        // სურვილისამებრ დიალექტი — Hibernate 6 ავტომატურადაც არჩევს, მაგრამ სურვილის შემთხვევაში წაიკითხავს:
+        String dialect = env.getProperty("hibernate.dialect");
+        if (dialect != null && !dialect.isBlank()) {
+            jpaProps.setProperty("hibernate.dialect", dialect);
+        }
 
+        LocalContainerEntityManagerFactoryBean emf = new LocalContainerEntityManagerFactoryBean();
+        emf.setDataSource(dataSource);
+        emf.setJpaVendorAdapter(vendorAdapter);
+        emf.setPackagesToScan(packages);
+        emf.setJpaProperties(jpaProps);
         return emf;
     }
 
-    // --- Transaction Manager ---
     @Bean
-    public PlatformTransactionManager transactionManager(LocalContainerEntityManagerFactoryBean emf) {
-        return new JpaTransactionManager(emf.getObject());
+    public PlatformTransactionManager transactionManager(EntityManagerFactory emf) {
+        JpaTransactionManager tx = new JpaTransactionManager();
+        tx.setEntityManagerFactory(emf);
+        return tx;
     }
 
-    // --- Exception translation (JPA → Spring exceptions) ---
+    // სტატიკურად გამოვაცხადოთ, რომ PostProcessor-ების გაფრთხილება აღარ მივიღოთ
     @Bean
-    public PersistenceExceptionTranslationPostProcessor exceptionTranslation() {
+    public static PersistenceExceptionTranslationPostProcessor exceptionTranslation() {
         return new PersistenceExceptionTranslationPostProcessor();
     }
 }
